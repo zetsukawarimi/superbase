@@ -472,6 +472,7 @@
         <button class="tab-btn active" onclick="switchTab('explorer')">📄 Documents</button>
         <button class="tab-btn" onclick="switchTab('query')">🔍 Query Studio</button>
         <button class="tab-btn" onclick="switchTab('indexes')">📌 Secondary Indexes</button>
+        <button class="tab-btn" onclick="switchTab('migration')">🔄 Migration Hub</button>
         <button class="tab-btn" onclick="switchTab('control')">⚙️ Maintenance & Control</button>
       </div>
 
@@ -629,6 +630,97 @@
         </div>
       </div>
 
+      <!-- Tab 5: Universal Migration Hub -->
+      <div id="tab-migration" class="tab-panel">
+        <div class="action-bar">
+          <div>
+            <h3 style="font-size: 15px; font-weight:700;">🔄 Universal Database Migration Hub</h3>
+            <p style="font-size: 12px; color: var(--text-muted);">Bidirectional migration: Import from or Export to MySQL, PostgreSQL, MongoDB, SQLite, CSV & JSON</p>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; flex: 1; overflow-y: auto;">
+
+          <!-- Card 1: Import -->
+          <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; display: flex; flex-direction: column;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+              <span style="font-size: 20px;">📥</span>
+              <h4 style="font-size: 14px; font-weight: 700;">Import ke Superbase</h4>
+            </div>
+            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">
+              Konversi dan masukkan data dari format SQL dump, MongoDB export, CSV, atau JSON ke dalam koleksi Superbase yang aktif.
+            </p>
+
+            <div class="form-group">
+              <label class="form-label">Format Sumber (Source Format)</label>
+              <select id="importFormatSelect" class="form-input">
+                <option value="mysql">🐬 MySQL / MariaDB (SQL INSERT Dump)</option>
+                <option value="postgres">🐘 PostgreSQL (SQL INSERT Dump)</option>
+                <option value="sqlite">🪶 SQLite (SQL INSERT Dump)</option>
+                <option value="mongo">🍃 MongoDB (mongoexport NDJSON / JSON)</option>
+                <option value="csv">📊 CSV (Spreadsheet / Excel)</option>
+                <option value="ndjson">📄 NDJSON / JSON Lines</option>
+                <option value="json" selected>📄 Standard JSON Array</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Upload File atau Paste Data</label>
+              <input type="file" id="importFileInput" class="form-input" style="padding: 6px; margin-bottom: 8px;" onchange="handleImportFileUpload(event)">
+              <textarea id="importTextInput" class="code-box" style="height: 140px;" placeholder="Atau paste SQL dump, CSV, atau JSON di sini..."></textarea>
+            </div>
+
+            <div style="margin-top: auto; padding-top: 10px;">
+              <button class="btn btn-primary" style="width: 100%; justify-content: center;" onclick="runImport()">
+                🚀 Jalankan Import ke Koleksi Aktif
+              </button>
+            </div>
+
+            <div id="importReportBox" style="display: none; margin-top: 14px; padding: 12px; background: rgba(16, 185, 129, 0.1); border: 1px solid var(--success); border-radius: 6px; font-size: 12px;">
+            </div>
+          </div>
+
+          <!-- Card 2: Export -->
+          <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; display: flex; flex-direction: column;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+              <span style="font-size: 20px;">📤</span>
+              <h4 style="font-size: 14px; font-weight: 700;">Export ke Database Lain</h4>
+            </div>
+            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">
+              Konversi koleksi Superbase aktif menjadi script SQL siap pakai atau format database eksternal lainnya.
+            </p>
+
+            <div class="form-group">
+              <label class="form-label">Target Database / Format</label>
+              <select id="exportFormatSelect" class="form-input" onchange="previewExport()">
+                <option value="mysql" selected>🐬 MySQL / MariaDB (SQL Table + JSON Data)</option>
+                <option value="postgres">🐘 PostgreSQL (SQL Table + Native JSONB & GIN Index)</option>
+                <option value="sqlite">🪶 SQLite3 (SQL Table + JSON)</option>
+                <option value="mongo">🍃 MongoDB (NDJSON mongoimport format)</option>
+                <option value="csv">📊 CSV (Auto-Flattened Spreadsheet)</option>
+                <option value="ndjson">📄 NDJSON / JSON Lines</option>
+                <option value="json">📄 Standard JSON Array</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Live Preview Script / Data Output</label>
+              <textarea id="exportPreviewBox" class="code-box" style="height: 190px;" readonly placeholder="Klik 'Preview Export' untuk melihat hasil konversi SQL/data..."></textarea>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: auto; padding-top: 10px;">
+              <button class="btn" style="flex: 1; justify-content: center;" onclick="previewExport()">
+                👁️ Preview Script
+              </button>
+              <button class="btn btn-primary" style="flex: 1; justify-content: center;" onclick="downloadExport()">
+                💾 Download File
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
     </main>
   </div>
 
@@ -734,6 +826,7 @@
 
       if (tabId === 'indexes') loadIndexes();
       if (tabId === 'control') fetchDatabaseStats();
+      if (tabId === 'migration') previewExport();
     }
 
     function openModal(id) { document.getElementById(id).classList.add('open'); }
@@ -1089,6 +1182,91 @@
         }
         document.getElementById('statTotalDocs').innerText = totalDocs;
       } catch (e) {}
+    }
+
+    // Migration Hub
+    function handleImportFileUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const name = file.name.toLowerCase();
+      const select = document.getElementById('importFormatSelect');
+      if (name.endsWith('.sql')) select.value = 'mysql';
+      else if (name.endsWith('.csv')) select.value = 'csv';
+      else if (name.endsWith('.ndjson') || name.endsWith('.jsonl')) select.value = 'ndjson';
+      else if (name.endsWith('.json')) select.value = 'json';
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        document.getElementById('importTextInput').value = event.target.result;
+        notify(`File '${file.name}' loaded into editor`);
+      };
+      reader.readAsText(file);
+    }
+
+    async function runImport() {
+      if (!currentCollection) {
+        notify('Pilih koleksi terlebih dahulu dari sidebar!', true);
+        return;
+      }
+
+      const format = document.getElementById('importFormatSelect').value;
+      const content = document.getElementById('importTextInput').value.trim();
+      if (!content) {
+        notify('Silakan pilih file atau paste data untuk di-import!', true);
+        return;
+      }
+
+      notify('Mengimpor data ke Superbase...');
+      try {
+        const res = await fetch(`/api/v1/collections/${currentCollection}/import?format=${format}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: content
+        });
+        const json = await res.json();
+        if (!res.ok || json.success === false) {
+          throw new Error(json.error || 'Import failed');
+        }
+
+        const report = json.data;
+        const box = document.getElementById('importReportBox');
+        box.style.display = 'block';
+        box.innerHTML = `
+          <strong>✅ Import Sukses!</strong><br>
+          • Total Diproses : ${report.total_processed}<br>
+          • Berhasil Masuk : <span style="color:var(--success);font-weight:700;">${report.imported}</span><br>
+          • Gagal : ${report.failed}<br>
+          • Waktu Eksekusi : ${report.elapsed_ms.toFixed(2)} ms
+        `;
+
+        notify(`Berhasil mengimpor ${report.imported} dokumen!`);
+        loadDocuments();
+        fetchDatabaseStats();
+      } catch (err) {
+        notify('Import gagal: ' + err.message, true);
+      }
+    }
+
+    async function previewExport() {
+      if (!currentCollection) return;
+      const format = document.getElementById('exportFormatSelect').value;
+      try {
+        const res = await fetch(`/api/v1/collections/${currentCollection}/export?format=${format}`);
+        const text = await res.text();
+        document.getElementById('exportPreviewBox').value = text;
+      } catch (err) {
+        notify('Preview export gagal: ' + err.message, true);
+      }
+    }
+
+    function downloadExport() {
+      if (!currentCollection) {
+        notify('Pilih koleksi terlebih dahulu!', true);
+        return;
+      }
+      const format = document.getElementById('exportFormatSelect').value;
+      window.location.href = `/api/v1/collections/${currentCollection}/export?format=${format}`;
     }
 
     // Startup

@@ -263,3 +263,94 @@ pub async fn get_collection_stats(
 
     ApiResponse::ok(col.stats())
 }
+
+#[derive(Deserialize)]
+pub struct ImportQuery {
+    pub format: Option<String>,
+}
+
+pub async fn import_collection(
+    State(db): State<Arc<Database>>,
+    Path(collection): Path<String>,
+    axum::extract::Query(query): axum::extract::Query<ImportQuery>,
+    body: String,
+) -> impl IntoResponse {
+    let col = match db.collection(&collection) {
+        Ok(c) => c,
+        Err(e) => return ApiResponse::err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    };
+
+    let fmt_str = query.format.as_deref().unwrap_or("json");
+    let format = crate::migration::MigrationFormat::from_str_loose(fmt_str)
+        .unwrap_or(crate::migration::MigrationFormat::Json);
+
+    match crate::migration::import_data(&col, format, &body) {
+        Ok(report) => ApiResponse::ok(report),
+        Err(e) => ApiResponse::err(StatusCode::BAD_REQUEST, &e.to_string()),
+    }
+}
+
+#[derive(Deserialize)]
+pub struct ExportQuery {
+    pub format: Option<String>,
+    pub flatten: Option<bool>,
+}
+
+pub async fn export_collection(
+    State(db): State<Arc<Database>>,
+    Path(collection): Path<String>,
+    axum::extract::Query(query): axum::extract::Query<ExportQuery>,
+) -> impl IntoResponse {
+    let col = match db.collection(&collection) {
+        Ok(c) => c,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                [(axum::http::header::CONTENT_TYPE, "text/plain")],
+                e.to_string(),
+            )
+                .into_response()
+        }
+    };
+
+    let fmt_str = query.format.as_deref().unwrap_or("json");
+    let format = crate::migration::MigrationFormat::from_str_loose(fmt_str)
+        .unwrap_or(crate::migration::MigrationFormat::Json);
+
+    let opts = crate::migration::ExportOptions {
+        flatten_columns: query.flatten.unwrap_or(false),
+    };
+
+    match crate::migration::export_data(&col, format, Some(opts)) {
+        Ok(exported_text) => {
+            let content_type = match format {
+                crate::migration::MigrationFormat::Json => "application/json",
+                crate::migration::MigrationFormat::Csv => "text/csv; charset=utf-8",
+                crate::migration::MigrationFormat::Mysql
+                | crate::migration::MigrationFormat::Postgres
+                | crate::migration::MigrationFormat::Sqlite => "application/sql",
+                crate::migration::MigrationFormat::NdJson
+                | crate::migration::MigrationFormat::Mongo => "application/x-ndjson",
+            };
+
+            let filename = format!("{}.{}", collection, format.default_extension());
+            let disposition = format!("attachment; filename=\"{}\"", filename);
+
+            (
+                StatusCode::OK,
+                [
+                    (axum::http::header::CONTENT_TYPE, content_type),
+                    (axum::http::header::CONTENT_DISPOSITION, &disposition),
+                ],
+                exported_text,
+            )
+                .into_response()
+        }
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            [(axum::http::header::CONTENT_TYPE, "text/plain")],
+            e.to_string(),
+        )
+            .into_response(),
+    }
+}

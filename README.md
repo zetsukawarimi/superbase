@@ -66,12 +66,35 @@ cargo run --release --bin superbase-studio -- --port 9090 --data-dir ./my_data
 ```
 *Browser default Anda akan otomatis terbuka menuju `http://127.0.0.1:9090`.*
 
-### 3. Menggunakan CLI & Interactive REPL
+### 3. Universal Database Migration Engine (CLI & GUI)
+Superbase dilengkapi dengan mesin migrasi dua arah (bidirectional) untuk semua jenis database:
+```bash
+# Export Superbase ke script MySQL SQL Dump
+cargo run --release --bin superbase-migrate -- export --collection users --format mysql --output users_mysql.sql
+
+# Export Superbase ke PostgreSQL (native JSONB & GIN Index)
+cargo run --release --bin superbase-migrate -- export --collection users --format postgres --output users_pg.sql
+
+# Export Superbase ke format MongoDB (mongoimport NDJSON)
+cargo run --release --bin superbase-migrate -- export --collection users --format mongo --output users_mongo.ndjson
+
+# Export Superbase ke CSV Spreadsheet
+cargo run --release --bin superbase-migrate -- export --collection users --format csv --output users.csv
+
+# Import dari MySQL dump ke dalam Superbase
+cargo run --release --bin superbase-migrate -- import --collection users --format mysql --input users_mysql.sql
+
+# Import dari CSV ke dalam Superbase
+cargo run --release --bin superbase-migrate -- import --collection users --format csv --input users.csv
+```
+*(Fitur migrasi ini juga tersedia langsung secara visual melalui tombol **🔄 Migration Hub** di dalam Superbase Studio GUI).*
+
+### 4. Menggunakan CLI & Interactive REPL
 ```bash
 cargo run --release --bin superbase-cli -- repl
 ```
 
-### 4. Menjalankan Benchmark Engine
+### 5. Menjalankan Benchmark Engine
 ```bash
 cargo run --release --bin superbase-bench -- --count 50000 --concurrency 8
 ```

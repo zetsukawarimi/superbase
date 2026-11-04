@@ -42,6 +42,8 @@ pub fn create_router(db: Arc<Database>) -> Router {
             get(list_indexes).post(create_index),
         )
         .route("/api/v1/collections/{collection}/indexes/{path}", delete(drop_index))
+        .route("/api/v1/collections/{collection}/import", post(import_collection))
+        .route("/api/v1/collections/{collection}/export", get(export_collection))
         .layer(cors)
         .layer(TraceLayer::new_for_http())
         .with_state(db)
