@@ -59,12 +59,19 @@ Superbase dirancang khusus untuk memecahkan kelemahan fundamental arsitektur RDB
 cargo run --release --bin superbase-server -- --port 8080 --data-dir ./my_data
 ```
 
-### 2. Menggunakan CLI & Interactive REPL
+### 2. Menjalankan Superbase Studio (GUI Management Software)
+Software GUI interaktif, ringan, dan lengkap dalam 100% Rust untuk kontrol dan manajemen data:
+```bash
+cargo run --release --bin superbase-studio -- --port 9090 --data-dir ./my_data
+```
+*Browser default Anda akan otomatis terbuka menuju `http://127.0.0.1:9090`.*
+
+### 3. Menggunakan CLI & Interactive REPL
 ```bash
 cargo run --release --bin superbase-cli -- repl
 ```
 
-### 3. Menjalankan Benchmark Engine
+### 4. Menjalankan Benchmark Engine
 ```bash
 cargo run --release --bin superbase-bench -- --count 50000 --concurrency 8
 ```
