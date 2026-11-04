@@ -1,4 +1,5 @@
 use axum::{
+    response::Html,
     routing::{delete, get, post},
     Router,
 };
@@ -9,6 +10,12 @@ use tower_http::trace::TraceLayer;
 use crate::db::Database;
 use crate::server::handlers::*;
 
+const DASHBOARD_HTML: &str = include_str!("dashboard.html");
+
+async fn serve_dashboard() -> Html<&'static str> {
+    Html(DASHBOARD_HTML)
+}
+
 pub fn create_router(db: Arc<Database>) -> Router {
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -16,6 +23,8 @@ pub fn create_router(db: Arc<Database>) -> Router {
         .allow_headers(Any);
 
     Router::new()
+        .route("/", get(serve_dashboard))
+        .route("/dashboard", get(serve_dashboard))
         .route("/health", get(health_check))
         .route("/api/v1/stats", get(get_database_stats))
         .route("/api/v1/collections", get(list_collections).post(create_collection))
